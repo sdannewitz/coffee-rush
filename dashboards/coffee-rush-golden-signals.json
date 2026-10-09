@@ -1,0 +1,460 @@
+{
+  "apiVersion": "dashboard.grafana.app/v1beta1",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "coffee-rush-golden-signals"
+  },
+  "spec": {
+    "title": "Coffee Rush: Golden Signals",
+    "description": "Traffic, errors, latency and saturation for welcome-desk (Node) and coffee-bar (Python), both zero-code OTel instrumented. Pick your namespace at the top.",
+    "tags": [
+      "gcx",
+      "coffee-rush"
+    ],
+    "timezone": "browser",
+    "schemaVersion": 36,
+    "time": {
+      "from": "now-30m",
+      "to": "now"
+    },
+    "refresh": "30s",
+    "templating": {
+      "list": [
+        {
+          "name": "namespace",
+          "type": "query",
+          "label": "Namespace",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "query": "label_values(http_server_duration_milliseconds_count{service_namespace=~\"homework-.*\"}, service_namespace)",
+          "refresh": 2,
+          "sort": 1,
+          "multi": false,
+          "includeAll": false
+        },
+        {
+          "name": "service",
+          "type": "query",
+          "label": "Service",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "grafanacloud-prom"
+          },
+          "query": "label_values({service_namespace=\"$namespace\"}, service_name)",
+          "multi": true,
+          "includeAll": true,
+          "current": {
+            "text": "All",
+            "value": "$__all"
+          },
+          "refresh": 2,
+          "sort": 1
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "type": "row",
+        "title": "Overview",
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "p95 latency",
+        "gridPos": {
+          "x": 0,
+          "y": 1,
+          "w": 6,
+          "h": 4
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 300
+                },
+                {
+                  "color": "red",
+                  "value": 1000
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m])))"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Request rate",
+        "gridPos": {
+          "x": 6,
+          "y": 1,
+          "w": 6,
+          "h": 4
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "sum(rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]))"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "Error rate",
+        "gridPos": {
+          "x": 12,
+          "y": 1,
+          "w": 6,
+          "h": 4
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 1
+                },
+                {
+                  "color": "red",
+                  "value": 5
+                }
+              ]
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "100 * sum(rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\", http_status_code=~\"5..\"}[5m]) or (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]) * 0)) / sum(rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]))"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "type": "stat",
+        "title": "In-flight requests",
+        "gridPos": {
+          "x": 18,
+          "y": 1,
+          "w": 6,
+          "h": 4
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "sum(http_server_active_requests{service_name=~\"$service\", service_namespace=\"$namespace\"})"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "type": "row",
+        "title": "Traffic",
+        "gridPos": {
+          "x": 0,
+          "y": 5,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 11,
+        "type": "timeseries",
+        "title": "Request rate by service",
+        "gridPos": {
+          "x": 0,
+          "y": 6,
+          "w": 24,
+          "h": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "{{service_name}}"
+          }
+        ]
+      },
+      {
+        "id": 20,
+        "type": "row",
+        "title": "Latency",
+        "gridPos": {
+          "x": 0,
+          "y": 14,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 21,
+        "type": "timeseries",
+        "title": "Latency percentiles by service",
+        "gridPos": {
+          "x": 0,
+          "y": 15,
+          "w": 12,
+          "h": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "histogram_quantile(0.50, sum by (le, service_name) (rate(http_server_duration_milliseconds_bucket{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m])))",
+            "legendFormat": "{{service_name}} p50"
+          },
+          {
+            "refId": "B",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "histogram_quantile(0.95, sum by (le, service_name) (rate(http_server_duration_milliseconds_bucket{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m])))",
+            "legendFormat": "{{service_name}} p95"
+          },
+          {
+            "refId": "C",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "histogram_quantile(0.99, sum by (le, service_name) (rate(http_server_duration_milliseconds_bucket{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m])))",
+            "legendFormat": "{{service_name}} p99"
+          }
+        ]
+      },
+      {
+        "id": 22,
+        "type": "timeseries",
+        "title": "coffee-bar p95 latency by endpoint",
+        "gridPos": {
+          "x": 12,
+          "y": 15,
+          "w": 12,
+          "h": 8
+        },
+        "description": "Shows the /pull \u2192 /pull/batch shift when the rush-mode fix ships.",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "histogram_quantile(0.95, sum by (le, http_target) (rate(http_server_duration_milliseconds_bucket{service_name=\"coffee-bar\", service_namespace=\"$namespace\"}[5m])))",
+            "legendFormat": "{{http_target}}"
+          }
+        ]
+      },
+      {
+        "id": 30,
+        "type": "row",
+        "title": "Errors",
+        "gridPos": {
+          "x": 0,
+          "y": 23,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 31,
+        "type": "timeseries",
+        "title": "Error rate % by service",
+        "gridPos": {
+          "x": 0,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "100 * sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\", http_status_code=~\"5..\"}[5m]) or (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]) * 0)) / sum by (service_name) (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "{{service_name}}"
+          }
+        ]
+      },
+      {
+        "id": 32,
+        "type": "timeseries",
+        "title": "Requests by status code",
+        "gridPos": {
+          "x": 12,
+          "y": 24,
+          "w": 12,
+          "h": 8
+        },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {
+              "stacking": {
+                "mode": "normal"
+              }
+            }
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "sum by (http_status_code) (rate(http_server_duration_milliseconds_count{service_name=~\"$service\", service_namespace=\"$namespace\"}[5m]))",
+            "legendFormat": "{{http_status_code}}"
+          }
+        ]
+      },
+      {
+        "id": 40,
+        "type": "row",
+        "title": "Saturation",
+        "gridPos": {
+          "x": 0,
+          "y": 32,
+          "w": 24,
+          "h": 1
+        },
+        "collapsed": false,
+        "panels": []
+      },
+      {
+        "id": 41,
+        "type": "timeseries",
+        "title": "In-flight requests by service",
+        "gridPos": {
+          "x": 0,
+          "y": 33,
+          "w": 24,
+          "h": 8
+        },
+        "description": "Concurrency proxy for saturation; both services await sequentially/internally today so this stays low even during rush mode.",
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          },
+          "overrides": []
+        },
+        "targets": [
+          {
+            "refId": "A",
+            "datasource": {
+              "type": "prometheus",
+              "uid": "grafanacloud-prom"
+            },
+            "expr": "sum by (service_name) (http_server_active_requests{service_name=~\"$service\", service_namespace=\"$namespace\"})",
+            "legendFormat": "{{service_name}}"
+          }
+        ]
+      }
+    ]
+  }
+}

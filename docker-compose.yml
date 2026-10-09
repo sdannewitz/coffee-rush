@@ -1,0 +1,52 @@
+name: coffee-rush
+
+# Run `make setup` first: it writes .env with your personal SERVICE_NAMESPACE
+# and the Grafana Cloud OTLP settings for your stack.
+x-otel: &otel
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=${SERVICE_NAMESPACE:?run make setup first},deployment.environment=homework
+  OTEL_METRICS_EXPORTER: otlp
+  OTEL_LOGS_EXPORTER: otlp
+
+services:
+  # ── Python ────────────────────────────────────────────────────────────
+  coffee-bar:
+    build: ./coffee-bar
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: coffee-bar
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: "true"
+      PULL_MS: "90"
+
+  # ── Node.js ───────────────────────────────────────────────────────────
+  welcome-desk:
+    build: ./welcome-desk
+    environment:
+      <<: *otel
+      OTEL_SERVICE_NAME: welcome-desk
+      COFFEE_BAR_URL: http://coffee-bar:8000
+      SERVICE_NAMESPACE: ${SERVICE_NAMESPACE}
+    ports: ["${APP_PORT:-8080}:8080"]
+    volumes:
+      - ./state:/state
+    depends_on: [coffee-bar]
+
+  # ── One egress point to Grafana Cloud ─────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.159.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol/config.yaml:ro
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY}
+
+  # ── A steady trickle of orders so the graphs aren't flat ──────────────
+  loadgen:
+    image: curlimages/curl:latest
+    depends_on: [welcome-desk]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do curl -s -o /dev/null http://welcome-desk:8080/api/orders; sleep 1; done'
