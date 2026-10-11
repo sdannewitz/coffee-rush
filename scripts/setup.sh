@@ -26,12 +26,26 @@ old()  { [ -f "$ENV_FILE" ] && sed -n "s/^$1=//p" "$ENV_FILE" | tail -1 || true;
 slug() { tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed -e 's/^-*//' -e 's/-*$//' | cut -c1-40; }
 TTY=0; [ -t 0 ] && TTY=1
 
+# read_secret VAR: read a line without echoing it, printing one * per character
+read_secret() {
+  local c s=""
+  while IFS= read -rs -n1 c; do
+    case "$c" in
+      "")             break ;;                                        # Enter
+      $'\177'|$'\b')  [ -n "$s" ] && { s=${s%?}; printf '\b \b'; } ;; # Backspace
+      *)              s+=$c; printf '*' ;;
+    esac
+  done
+  echo
+  printf -v "$1" '%s' "$s"
+}
+
 # ask VAR "question" "default" [secret]: prompt with a default; Enter keeps it.
 ask() {
   local var=$1 q=$2 def=$3 secret=${4:-} ans=""
   if [ "$TTY" = 1 ]; then
     if [ -n "$secret" ]; then
-      printf '%s%s: ' "$q" "${def:+ [Enter keeps the current one]}"; read -rs ans; echo
+      printf '%s%s: ' "$q" "${def:+ [Enter keeps the current one]}"; read_secret ans
     else
       printf '%s%s: ' "$q" "${def:+ [$def]}"; read -r ans
     fi
