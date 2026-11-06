@@ -268,7 +268,8 @@ make up         # answer the 4 questions
 - Every attendee's telemetry is separated by `service.namespace = homework-<nickname>`.
   `deployment.environment.name = homework` (and the older `deployment.environment`)
   marks all of it. Outside a workshop, change both with `NAMESPACE_PREFIX` and
-  `DEPLOYMENT_ENVIRONMENT` (see the top of [`scripts/setup.sh`](scripts/setup.sh)).
+  `DEPLOYMENT_ENVIRONMENT` (see the top of [`scripts/setup.sh`](scripts/setup.sh)),
+  and serve the app under a reverse-proxy path such as `/coffee` with `BASE_PATH`.
 
 ## License
 

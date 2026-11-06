@@ -77,7 +77,7 @@ let served = 0;
 async function poll(){
   const t0 = performance.now();
   try{
-    const r = await fetch('/api/orders');
+    const r = await fetch('api/orders');
     const d = await r.json();
     const ms = Math.round(performance.now() - t0);
 
@@ -101,9 +101,9 @@ async function poll(){
 }
 
 async function toggle(on){
-  const r = await fetch('/api/rush', {method:'POST'});
+  const r = await fetch('api/rush', {method:'POST'});
   const d = await r.json();
-  if (d.rushMode !== on) await fetch('/api/rush', {method:'POST'});
+  if (d.rushMode !== on) await fetch('api/rush', {method:'POST'});
   poll();
 }
 

@@ -16,6 +16,8 @@
 #   NAMESPACE_PREFIX        default "homework"; set it empty for no prefix
 #                           (NAMESPACE_PREFIX= ATTENDEE=coffee-rush-demo → coffee-rush-demo)
 #   DEPLOYMENT_ENVIRONMENT  default "homework" → deployment.environment.name
+#   BASE_PATH               default empty; e.g. /coffee when a reverse proxy serves
+#                           the app under that path (the app also answers on /)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ENV_FILE="${ENV_FILE:-.env}"
@@ -145,6 +147,7 @@ else ask TOKEN "4/4 Ingest token (glc_…, input hidden)" "$DEF_TOKEN" secret; f
 case "$TOKEN" in glc_*) ;; *) warn "Grafana Cloud access policy tokens usually start with glc_." ;; esac
 
 PORT="${APP_PORT:-$(old APP_PORT)}"
+BASE="${BASE_PATH:-$(old BASE_PATH)}"
 GRAFANA_URL="${GRAFANA_URL:-${DET_URL:-$(old GRAFANA_URL)}}"   # for the App Observability links
 
 # ── Write .env ───────────────────────────────────────────────────────────────
@@ -160,6 +163,7 @@ GRAFANA_CLOUD_OTLP_ENDPOINT=$ENDPOINT
 GRAFANA_CLOUD_INSTANCE_ID=$INSTANCE_ID
 GRAFANA_CLOUD_API_KEY=$TOKEN
 APP_PORT=${PORT:-8080}
+BASE_PATH=$BASE
 GCX_CONTEXT=$CTX
 GRAFANA_URL=$GRAFANA_URL
 EOF

@@ -29,6 +29,7 @@ services:
       OTEL_SERVICE_NAME: welcome-desk
       COFFEE_BAR_URL: http://coffee-bar:8000
       SERVICE_NAMESPACE: ${SERVICE_NAMESPACE}
+      BASE_PATH: ${BASE_PATH:-}   # e.g. /coffee behind a reverse proxy route; empty locally
     ports: ["${APP_PORT:-8080}:8080"]
     volumes:
       - ./state:/state
