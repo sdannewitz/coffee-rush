@@ -5,7 +5,9 @@ name: coffee-rush
 x-otel: &otel
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
   OTEL_EXPORTER_OTLP_PROTOCOL: grpc
-  OTEL_RESOURCE_ATTRIBUTES: service.namespace=${SERVICE_NAMESPACE:?run make setup first},deployment.environment=homework
+  # deployment.environment.name is the current semconv key; deployment.environment is
+  # kept for queries and dashboards that still use the old one.
+  OTEL_RESOURCE_ATTRIBUTES: service.namespace=${SERVICE_NAMESPACE:?run make setup first},deployment.environment.name=${DEPLOYMENT_ENVIRONMENT:-homework},deployment.environment=${DEPLOYMENT_ENVIRONMENT:-homework}
   OTEL_METRICS_EXPORTER: otlp
   OTEL_LOGS_EXPORTER: otlp
 

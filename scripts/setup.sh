@@ -10,6 +10,12 @@
 # Non-interactive: set ATTENDEE, GRAFANA_CLOUD_OTLP_ENDPOINT,
 # GRAFANA_CLOUD_INSTANCE_ID, GRAFANA_CLOUD_API_KEY (and optionally GCX_CONTEXT,
 # APP_PORT, ENV_FILE) and those questions are skipped.
+#
+# Outside a workshop (an always-on demo, say), two labels can be changed. They
+# aren't asked; set them in the environment or in .env, and re-runs keep them:
+#   NAMESPACE_PREFIX        default "homework"; set it empty for no prefix
+#                           (NAMESPACE_PREFIX= ATTENDEE=coffee-rush-demo → coffee-rush-demo)
+#   DEPLOYMENT_ENVIRONMENT  default "homework" → deployment.environment.name
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ENV_FILE="${ENV_FILE:-.env}"
@@ -23,6 +29,7 @@ str()  { tr -d '"\n'; }                        # gcx --jq prints JSON strings
 q()    { local out; out=$(gcx "$@" 2>/dev/null) || return 0
          case "$out" in *gcx.error*|null) return 0 ;; esac; printf '%s' "$out" | str; }
 old()  { [ -f "$ENV_FILE" ] && sed -n "s/^$1=//p" "$ENV_FILE" | tail -1 || true; }
+has()  { [ -f "$ENV_FILE" ] && grep -q "^$1=" "$ENV_FILE"; }   # key present in .env, even if empty
 slug() { tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed -e 's/^-*//' -e 's/-*$//' | cut -c1-40; }
 TTY=0; [ -t 0 ] && TTY=1
 
@@ -84,6 +91,16 @@ else
 fi
 echo
 
+# ── Labels not asked about (see the header): prefix and environment ──────────
+# An empty NAMESPACE_PREFIX is a valid choice (no prefix), so "set" beats "non-empty".
+if [ -n "${NAMESPACE_PREFIX+set}" ]; then PREFIX="$NAMESPACE_PREFIX"
+elif has NAMESPACE_PREFIX;            then PREFIX="$(old NAMESPACE_PREFIX)"
+else                                       PREFIX="homework"; fi
+PREFIX=$(printf '%s' "$PREFIX" | slug)
+ENVIRONMENT="${DEPLOYMENT_ENVIRONMENT:-$(old DEPLOYMENT_ENVIRONMENT)}"
+ENVIRONMENT=$(printf '%s' "${ENVIRONMENT:-homework}" | slug)
+[ -n "$ENVIRONMENT" ] || die "DEPLOYMENT_ENVIRONMENT needs at least one letter or digit."
+
 # ── 1. Nickname → your personal label ────────────────────────────────────────
 DEF_NICK="$(old ATTENDEE)"
 [ -n "$DEF_NICK" ] || DEF_NICK=$(printf '%s' "${LOGIN%%@*}" | slug)
@@ -95,7 +112,7 @@ while :; do
     [ "$TTY" = 1 ] && [ -z "${ATTENDEE:-}" ] || die "The nickname needs at least one letter or digit."
     warn "Use letters or digits."; continue
   fi
-  NAMESPACE="homework-$NICK"
+  NAMESPACE="${PREFIX:+$PREFIX-}$NICK"
   # Someone else already sending as this namespace? (Your own earlier runs are fine.)
   if [ -n "$LOGIN" ] && [ "$TTY" = 1 ] && [ -z "${ATTENDEE:-}" ] && [ "$NAMESPACE" != "$(old SERVICE_NAMESPACE)" ]; then
     IN_USE=$(q --context "$CTX" metrics query \
@@ -136,7 +153,9 @@ umask 077
 cat > "$ENV_FILE" <<EOF
 # Written by scripts/setup.sh. Re-run \`make setup\` to change anything.
 ATTENDEE=$NICK
+NAMESPACE_PREFIX=$PREFIX
 SERVICE_NAMESPACE=$NAMESPACE
+DEPLOYMENT_ENVIRONMENT=$ENVIRONMENT
 GRAFANA_CLOUD_OTLP_ENDPOINT=$ENDPOINT
 GRAFANA_CLOUD_INSTANCE_ID=$INSTANCE_ID
 GRAFANA_CLOUD_API_KEY=$TOKEN
@@ -148,6 +167,7 @@ EOF
 echo
 ok "wrote $ENV_FILE"
 note "your label   service.namespace = $NAMESPACE"
+[ "$ENVIRONMENT" = homework ] || note "environment  deployment.environment.name = $ENVIRONMENT"
 note "sending to   $ENDPOINT (instance $INSTANCE_ID)"
 if [ -n "$CTX" ]; then note "gcx context  $CTX"
 else warn "log in with gcx before the exercise: gcx login workshop --server https://<your-stack>.grafana.net --oauth"; fi

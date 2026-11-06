@@ -266,7 +266,9 @@ make up         # answer the 4 questions
 - **Viewer is enough** for attendees. Apart from telemetry, nothing in this lab
   writes to the stack.
 - Every attendee's telemetry is separated by `service.namespace = homework-<nickname>`.
-  `deployment.environment = homework` marks all of it.
+  `deployment.environment.name = homework` (and the older `deployment.environment`)
+  marks all of it. Outside a workshop, change both with `NAMESPACE_PREFIX` and
+  `DEPLOYMENT_ENVIRONMENT` (see the top of [`scripts/setup.sh`](scripts/setup.sh)).
 
 ## License
 
